@@ -493,6 +493,24 @@
   </div>
 </div>
 
+<div class="overlay" id="galleryOverlay" style="align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:min(640px,94vw);max-height:90vh;overflow-y:auto;padding:24px;position:relative;">
+    <button class="close-x" data-close="galleryOverlay" style="position:absolute;top:14px;left:14px;">&times;</button>
+    <div id="galleryMain" style="width:100%;aspect-ratio:4/5;border-radius:10px;overflow:hidden;background:var(--pink);margin-bottom:12px;">
+      <img id="galleryMainImg" src="" alt="" style="width:100%;height:100%;object-fit:cover;">
+    </div>
+    <div id="galleryThumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;"></div>
+    <span class="cat" id="galleryCat" style="font-size:11px;font-weight:700;color:var(--rose);letter-spacing:.3px;"></span>
+    <h3 id="galleryName" style="margin:6px 0 8px;"></h3>
+    <div id="galleryDesc" style="font-size:13.5px;color:#635a5b;line-height:1.8;margin-bottom:16px;"></div>
+    <div class="price-row" style="margin-bottom:16px;">
+      <span class="price" id="galleryPrice"></span>
+      <span class="old-price" id="galleryOldPrice"></span>
+    </div>
+    <button type="button" class="btn btn-primary" id="galleryBuyBtn" style="justify-content:center;width:100%;"><span data-t="buy_now"></span></button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.2/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.2/firebase-firestore-compat.min.js"></script>
 <script>
@@ -818,7 +836,7 @@ function productCard(p){
   const stockBadge = unavailable ? `<span class="stock-badge no">${currentLang==='ar'?'غير متوفر':'Non Disponible'}</span>` : "";
   return `
   <div class="card" data-id="${p.id}">
-    <div class="thumb">${img}${promo}</div>
+    <div class="thumb" onclick="openProductGallery('${p.id}')" style="cursor:pointer;">${img}${promo}</div>
     <div class="info">
       <span class="cat">${p.category}</span>
       <h3>${p.name}</h3>
@@ -952,6 +970,28 @@ function populateVariantFields(p){
     sizeInput.style.display = "";
     sizeInput.value = "";
   }
+}
+function openProductGallery(productId){
+  const p = PRODUCTS.find(x=>x.id===productId);
+  if(!p) return;
+  const images = (p.images && p.images.length) ? p.images : [];
+  const mainImg = document.getElementById("galleryMainImg");
+  mainImg.src = images[0] || "";
+  document.getElementById("galleryThumbs").innerHTML = images.map((img,i)=>`
+    <div style="width:52px;height:66px;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===0?'var(--rose)':'transparent'};" onclick="document.getElementById('galleryMainImg').src='${img}';this.parentElement.querySelectorAll('div').forEach(d=>d.style.borderColor='transparent');this.style.borderColor='var(--rose)';">
+      <img src="${img}" style="width:100%;height:100%;object-fit:cover;">
+    </div>`).join("");
+  document.getElementById("galleryCat").textContent = p.category || "";
+  document.getElementById("galleryName").textContent = p.name || "";
+  document.getElementById("galleryDesc").textContent = p.description || "";
+  document.getElementById("galleryPrice").textContent = money(p.price);
+  document.getElementById("galleryOldPrice").textContent = p.oldPrice ? money(p.oldPrice) : "";
+  document.getElementById("galleryBuyBtn").querySelector("span").textContent = dict.buy_now[currentLang];
+  document.getElementById("galleryBuyBtn").onclick = ()=>{
+    document.getElementById("galleryOverlay").classList.remove("open");
+    openOrderForm(p.id);
+  };
+  document.getElementById("galleryOverlay").classList.add("open");
 }
 function openOrderForm(productId){
   const p = productId ? PRODUCTS.find(x=>x.id===productId) : null;
