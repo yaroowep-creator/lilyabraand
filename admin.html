@@ -289,6 +289,20 @@ tr:last-child td{border-bottom:none;}
       </label>
 
       <label class="full section-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="lbl-ic"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        صور ثانوية (إضافية)
+        <span class="hint">صور تفاصيل إضافية (قماش، قياسات، زوايا مختلفة...) — تظهر للزبون مع الصور الرئيسية عند الضغط على صورة المنتج</span>
+        <div class="add-img-row">
+          <label class="upload-btn" for="p_imgfile2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+            تحميل صور ثانوية
+          </label>
+          <input type="file" id="p_imgfile2" accept="image/*" multiple style="display:none;">
+        </div>
+        <div class="img-list" id="imgList2"></div>
+      </label>
+
+      <label class="full section-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="lbl-ic"><path d="M4 4l16 8-16 8V4z"/></svg>
         فيديوهات المنتج (روابط يوتيوب / تيك توك / رابط فيديو مباشر)
         <span class="hint">يمكن إضافة أكثر من فيديو واحد لنفس المنتج</span>
@@ -383,6 +397,7 @@ const DEFAULT_PASS = "lilya2026";
 let PRODUCTS = [];
 let ORDERS = [];
 let currentImages = [];
+let currentImagesSecondary = [];
 let currentVideos = [];
 let currentColors = [];
 let currentSizes = [];
@@ -458,7 +473,7 @@ function renderProductsTable(){
     <tr>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap;max-width:170px;">
-          ${(p.images&&p.images.length) ? p.images.map(img=>`<img class="thumb64" style="width:36px;height:46px;" src="${img}">`).join("") : `<div class="thumb64"></div>`}
+          ${(()=>{ const all=[...(p.images||[]),...(p.imagesSecondary||[])]; return all.length ? all.map(img=>`<img class="thumb64" style="width:36px;height:46px;" src="${img}">`).join("") : `<div class="thumb64"></div>`; })()}
         </div>
       </td>
       <td>${p.name}</td>
@@ -495,8 +510,8 @@ document.getElementById("addProductBtn").onclick = ()=>{
   document.getElementById("p_price").value = "";
   document.getElementById("p_oldprice").value = "";
   document.getElementById("p_desc").value = "";
-  currentImages = []; currentVideos = []; currentColors = []; currentSizes = [];
-  renderImgList(); renderVideoList(); renderColorList(); renderSizePresets(); renderSizeList();
+  currentImages = []; currentImagesSecondary = []; currentVideos = []; currentColors = []; currentSizes = [];
+  renderImgList(); renderImgList2(); renderVideoList(); renderColorList(); renderSizePresets(); renderSizeList();
   setAvailable(true);
   openModal();
 };
@@ -512,10 +527,11 @@ function editProduct(id){
   document.getElementById("p_oldprice").value = p.oldPrice||"";
   document.getElementById("p_desc").value = p.description||"";
   currentImages = (p.images||[]).slice();
+  currentImagesSecondary = (p.imagesSecondary||[]).slice();
   currentVideos = (p.videos || (p.video?[p.video]:[])).slice();
   currentColors = (p.colors||[]).slice();
   currentSizes = (p.sizes||[]).slice();
-  renderImgList(); renderVideoList(); renderColorList(); renderSizePresets(); renderSizeList();
+  renderImgList(); renderImgList2(); renderVideoList(); renderColorList(); renderSizePresets(); renderSizeList();
   setAvailable(p.available !== false);
   openModal();
 }
@@ -540,17 +556,26 @@ function renderImgList(){
   updateImgSizeHint();
 }
 function removeImg(i){ currentImages.splice(i,1); renderImgList(); }
+function renderImgList2(){
+  const box = document.getElementById("imgList2");
+  box.innerHTML = currentImagesSecondary.map((url,i)=>`
+    <div class="im"><img src="${url}"><button onclick="removeImg2(${i})">&times;</button></div>
+  `).join("");
+  updateImgSizeHint();
+}
+function removeImg2(i){ currentImagesSecondary.splice(i,1); renderImgList2(); }
 
 /* No paid service needed. Firestore documents are capped at ~1MB, so each */
 /* image is resized/compressed and a running size budget is enforced.     */
 const MAX_TOTAL_IMG_BYTES = 850 * 1024; // leave headroom under Firestore's ~1MB doc limit
 function currentImagesBytes(){
-  return currentImages.reduce((sum,s)=> sum + (s.length*0.75), 0); // base64 -> approx raw bytes
+  return currentImages.concat(currentImagesSecondary).reduce((sum,s)=> sum + (s.length*0.75), 0); // base64 -> approx raw bytes
 }
 function updateImgSizeHint(){
   const used = Math.round(currentImagesBytes()/1024);
+  const total = currentImages.length + currentImagesSecondary.length;
   document.getElementById("imgSizeHint").textContent =
-    `الحجم المستخدم: ${used} كيلوبايت من أصل ${Math.round(MAX_TOTAL_IMG_BYTES/1024)} كيلوبايت تقريبًا لكل منتج (${currentImages.length} صورة).`;
+    `الحجم المستخدم: ${used} كيلوبايت من أصل ${Math.round(MAX_TOTAL_IMG_BYTES/1024)} كيلوبايت تقريبًا لكل منتج (${total} صورة، رئيسية + ثانوية).`;
 }
 function compressImage(file, maxDim, quality){
   return new Promise((resolve, reject)=>{
@@ -592,6 +617,28 @@ document.getElementById("p_imgfile").addEventListener("change", async (e)=>{
     }
     currentImages.push(dataUrl);
     renderImgList();
+    updateImgSizeHint();
+  }
+  e.target.value = "";
+});
+document.getElementById("p_imgfile2").addEventListener("change", async (e)=>{
+  const files = Array.from(e.target.files || []);
+  for(const file of files){
+    let dataUrl = null;
+    for(const [maxDim, quality] of [[1000,0.6],[800,0.5],[640,0.4],[480,0.35]]){
+      const candidate = await compressImage(file, maxDim, quality).catch(()=>null);
+      if(!candidate) continue;
+      const candidateBytes = candidate.length*0.75;
+      if(currentImagesBytes() + candidateBytes <= MAX_TOTAL_IMG_BYTES){ dataUrl = candidate; break; }
+      dataUrl = candidate;
+    }
+    if(!dataUrl){ continue; }
+    if(currentImagesBytes() + dataUrl.length*0.75 > MAX_TOTAL_IMG_BYTES){
+      alert(`بلغتِ الحد الأقصى التقريبي لحجم صور هذا المنتج. لإضافة صورة "${file.name}" احذفي صورة قديمة أولاً (رئيسية أو ثانوية) أو أنشئي منتجًا آخر لباقي الصور.`);
+      continue;
+    }
+    currentImagesSecondary.push(dataUrl);
+    renderImgList2();
     updateImgSizeHint();
   }
   e.target.value = "";
@@ -681,6 +728,7 @@ document.getElementById("saveProductBtn").onclick = async ()=>{
   const productData = {
     name, price, oldPrice, category, description,
     images: currentImages.slice(),
+    imagesSecondary: currentImagesSecondary.slice(),
     videos: currentVideos.slice(),
     colors: currentColors.slice(),
     sizes: currentSizes.slice(),
