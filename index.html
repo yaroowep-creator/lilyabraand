@@ -974,7 +974,7 @@ function populateVariantFields(p){
 function openProductGallery(productId){
   const p = PRODUCTS.find(x=>x.id===productId);
   if(!p) return;
-  const images = (p.images && p.images.length) ? p.images : [];
+  const images = [...(p.images||[]), ...(p.imagesSecondary||[])];
   const mainImg = document.getElementById("galleryMainImg");
   mainImg.src = images[0] || "";
   document.getElementById("galleryThumbs").innerHTML = images.map((img,i)=>`
